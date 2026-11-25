@@ -190,18 +190,23 @@ class DocxGenerationTests(unittest.TestCase):
             reference.styles['Normal'].paragraph_format.line_spacing = 1.0
             reference.add_paragraph('Текст образца для сравнения.')
             reference.add_table(rows=1, cols=2)
+            reference.sections[0].header.paragraphs[0].text = 'Организация'
+            reference.sections[0].footer.paragraphs[0].text = 'Лист'
             reference.save(reference_path)
             candidate = Document()
             candidate.sections[0].left_margin = __import__('docx').shared.Cm(3.0)
             candidate.styles['Normal'].paragraph_format.line_spacing = 1.5
             candidate.add_paragraph('Текст проверяемого документа.')
             candidate.add_table(rows=2, cols=2)
+            candidate.sections[0].header.paragraphs[0].text = 'Другая организация'
             candidate.save(candidate_path)
             report = compare_docx(reference_path, candidate_path)
             properties = {item['property'] for item in report['findings']}
             self.assertIn('left_margin', properties)
             self.assertIn('table_dimensions', properties)
             self.assertIn('Normal.line_spacing', properties)
+            self.assertIn('header_content', properties)
+            self.assertIn('footer_content', properties)
 
     SAMPLE = '''# ВВЕДЕНИЕ
 

@@ -27,6 +27,15 @@ def _table_signature(document):
     return [(len(table.rows), len(table.columns)) for table in document.tables]
 
 
+def _story_signature(story):
+    paragraphs = tuple(p.text.strip() for p in story.paragraphs if p.text.strip())
+    tables = tuple(tuple(tuple(cell.text.strip() for cell in row.cells) for row in table.rows)
+                   for table in story.tables)
+    fields = tuple((node.text or "").strip() for node in story._element.xpath(".//w:instrText")
+                   if (node.text or "").strip())
+    return paragraphs, tables, fields
+
+
 def compare_docx(reference_path, candidate_path, tolerance_cm: float = 0.2) -> dict:
     reference = Document(str(reference_path))
     candidate = Document(str(candidate_path))
@@ -73,6 +82,16 @@ def compare_docx(reference_path, candidate_path, tolerance_cm: float = 0.2) -> d
     if ref_tables != cand_tables:
         findings.append({"property": "table_dimensions", "reference": ref_tables,
                          "candidate": cand_tables})
+    ref_headers = [_story_signature(section.header) for section in reference.sections]
+    cand_headers = [_story_signature(section.header) for section in candidate.sections]
+    if ref_headers != cand_headers:
+        findings.append({"property": "header_content", "reference": ref_headers,
+                         "candidate": cand_headers})
+    ref_footers = [_story_signature(section.footer) for section in reference.sections]
+    cand_footers = [_story_signature(section.footer) for section in candidate.sections]
+    if ref_footers != cand_footers:
+        findings.append({"property": "footer_content", "reference": ref_footers,
+                         "candidate": cand_footers})
     return {"reference": str(reference_path), "candidate": str(candidate_path),
             "findings": findings, "matches": not findings}
 
@@ -84,7 +103,8 @@ def format_comparison(report: dict) -> str:
               "top_margin": "верхнее поле", "bottom_margin": "нижнее поле",
               "left_margin": "левое поле", "right_margin": "правое поле",
               "font_name": "основной шрифт", "font_size_pt": "размер шрифта",
-              "table_count": "количество таблиц", "table_dimensions": "размеры таблиц"}
+              "table_count": "количество таблиц", "table_dimensions": "размеры таблиц",
+              "header_content": "содержимое колонтитула", "footer_content": "содержимое нижнего колонтитула"}
     return "Обнаружены различия (образец → проверяемый документ):\n" + "\n".join(
         f"• {labels.get(item['property'], item['property'])}: "
         f"{item['reference']} → {item['candidate']}" for item in report["findings"])
