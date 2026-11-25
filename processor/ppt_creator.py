@@ -4,7 +4,9 @@ import re
 from pptx import Presentation
 from pptx.util import Inches, Pt
 from pptx.enum.text import PP_ALIGN
+from pptx.enum.shapes import MSO_SHAPE_TYPE
 from markdown_editors import parse_image_marker_options
+from slide_editor import parse_slide_positions, normalize_slide_positions
 from logger import logger
 from .ppt_builder import (
     find_layout_by_name, set_title, try_set_subtitle, find_body_placeholder,
@@ -118,8 +120,71 @@ def parse_presentation(markup: str):
             'images': images,
             'chart': chart,
             'table': table,
+            'positions': parse_slide_positions(content_wo_title),
         })
     return slides
+
+
+def _apply_slide_positions(slide, slide_data, prs):
+    positions = normalize_slide_positions(slide_data.get('positions', {}))
+    if not positions:
+        return
+
+    targets = {}
+    title_shape = slide.shapes.title
+    title = slide_data.get('title', '').strip()
+    if title_shape is None and title:
+        title_shape = next((shape for shape in slide.shapes
+                            if shape.has_text_frame and shape.text_frame.text.strip() == title), None)
+    if title_shape is not None:
+        targets['title'] = title_shape
+
+    subtitle = slide_data.get('subtitle', '').strip()
+    if subtitle:
+        targets['subtitle'] = next((shape for shape in slide.shapes
+                                    if shape.has_text_frame and shape.text_frame.text.strip() == subtitle
+                                    and shape is not title_shape), None)
+
+    body = find_body_placeholder(slide)
+    if body is None:
+        bullet_text = {text for _level, text in slide_data.get('bullets', [])}
+        body = next((shape for shape in slide.shapes if shape.has_text_frame
+                     and any(line.strip() in bullet_text for line in shape.text_frame.text.splitlines())), None)
+    if body is not None:
+        targets['body'] = body
+
+    for shape in slide.shapes:
+        if shape.name.startswith('GOST layout '):
+            targets[shape.name[len('GOST layout '):]] = shape
+        if getattr(shape, 'has_table', False) and shape.has_table:
+            targets.setdefault('table', shape)
+        if getattr(shape, 'has_chart', False) and shape.has_chart:
+            targets.setdefault('chart', shape)
+    pictures = [shape for shape in slide.shapes if shape.shape_type == MSO_SHAPE_TYPE.PICTURE]
+    if pictures:
+        targets.setdefault('image_1', pictures[0])
+
+    slide_width, slide_height = prs.slide_width, prs.slide_height
+    for key, box in positions.items():
+        shape = targets.get(key)
+        if shape is None:
+            continue
+        x, y, width, height = box
+        left, top = round(x * slide_width), round(y * slide_height)
+        shape_width, shape_height = round(width * slide_width), round(height * slide_height)
+        if shape.shape_type == MSO_SHAPE_TYPE.PICTURE:
+            try:
+                image_width, image_height = shape.image.size
+                scale = min(shape_width / image_width, shape_height / image_height)
+                shape_width = round(image_width * scale)
+                shape_height = round(image_height * scale)
+                left += (round(width * slide_width) - shape_width) // 2
+                top += (round(height * slide_height) - shape_height) // 2
+            except Exception:
+                pass
+        shape.left, shape.top = left, top
+        shape.width, shape.height = shape_width, shape_height
+        shape.name = f'GOST layout {key}'
 
 
 def create_presentation(markup: str, output_path: str, template_path: str,
@@ -189,13 +254,18 @@ def create_presentation(markup: str, output_path: str, template_path: str,
             # Спец-случаи для image/table/chart — дорисовываем ПОВЕРХ клона
             if stype in ('image_right', 'image_left', 'image'):
                 side = 'left' if stype == 'image_left' else 'right'
-                add_image_or_placeholder(slide, sd['images'], prs, side=side)
+                image_shape = add_image_or_placeholder(slide, sd['images'], prs, side=side)
+                if image_shape is not None:
+                    image_shape.name = 'GOST layout image_1'
             elif stype == 'image_full':
-                add_full_image(slide, sd['images'], prs)
+                image_shape = add_full_image(slide, sd['images'], prs)
+                if image_shape is not None:
+                    image_shape.name = 'GOST layout image_1'
             elif stype == 'table' and sd['table']:
                 add_table(slide, sd['table'], prs)
             elif stype == 'chart' and sd['chart']:
                 add_chart(slide, sd['chart'], prs)
+            _apply_slide_positions(slide, sd, prs)
             continue
 
         # ---- Путь B: старый режим — по имени layout ----
@@ -231,10 +301,14 @@ def create_presentation(markup: str, output_path: str, template_path: str,
                     body._element.getparent().remove(body._element)
                 except Exception:
                     pass
-            add_full_image(slide, sd['images'], prs)
+            image_shape = add_full_image(slide, sd['images'], prs)
+            if image_shape is not None:
+                image_shape.name = 'GOST layout image_1'
         elif stype in ('image_right', 'image_left', 'image'):
             side = 'left' if stype == 'image_left' else 'right'
-            add_image_or_placeholder(slide, sd['images'], prs, side=side)
+            image_shape = add_image_or_placeholder(slide, sd['images'], prs, side=side)
+            if image_shape is not None:
+                image_shape.name = 'GOST layout image_1'
             body = find_body_placeholder(slide)
             if body and sd['bullets']:
                 add_bullets_auto(body, sd['bullets'], base_size, min_size)
@@ -265,6 +339,8 @@ def create_presentation(markup: str, output_path: str, template_path: str,
             except Exception as e:
                 logger.warning(f"Не удалось записать заметки: {e}")
 
+        _apply_slide_positions(slide, sd, prs)
+
     if settings.get('ppt_slide_numbers', False):
         add_slide_numbers(prs, settings.get('ppt_slide_number_color', '666666'))
 
@@ -272,3 +348,4 @@ def create_presentation(markup: str, output_path: str, template_path: str,
     prs.save(final_path)
     logger.info(f"Презентация сохранена: {final_path}")
     return final_path
+

@@ -133,8 +133,7 @@ def add_image_or_placeholder(slide, images, prs, side='right'):
             fitted_w, fitted_h = _fit_image_box(path, width, height)
             fitted_left = left + (width - fitted_w) // 2
             fitted_top = top + (height - fitted_h) // 2
-            slide.shapes.add_picture(path, fitted_left, fitted_top, width=fitted_w, height=fitted_h)
-            return
+            return slide.shapes.add_picture(path, fitted_left, fitted_top, width=fitted_w, height=fitted_h)
         except Exception:
             pass
 
@@ -145,6 +144,7 @@ def add_image_or_placeholder(slide, images, prs, side='right'):
     for p in tf.paragraphs:
         for run in p.runs:
             run.font.size = Pt(14)
+    return tb
 
 
 def add_full_image(slide, images, prs):
@@ -154,8 +154,7 @@ def add_full_image(slide, images, prs):
             fitted_w, fitted_h = _fit_image_box(path, prs.slide_width, prs.slide_height)
             left = (prs.slide_width - fitted_w) // 2
             top = (prs.slide_height - fitted_h) // 2
-            slide.shapes.add_picture(path, left, top, width=fitted_w, height=fitted_h)
-            return
+            return slide.shapes.add_picture(path, left, top, width=fitted_w, height=fitted_h)
         except Exception:
             pass
     tb = slide.shapes.add_textbox(0, 0, prs.slide_width, prs.slide_height)
@@ -167,6 +166,7 @@ def add_full_image(slide, images, prs):
         p.alignment = PP_ALIGN.CENTER
         for run in p.runs:
             run.font.size = Pt(20)
+    return tb
 
 
 # ---------- Table ----------
@@ -197,6 +197,7 @@ def add_table(slide, rows, prs):
                 for run in p.runs:
                     run.font.size = Pt(14 if n_rows <= 6 else max(9, 14 - (n_rows - 6) // 3))
                 p.alignment = PP_ALIGN.CENTER
+    return shape
 
 
 # ---------- Chart ----------
@@ -233,7 +234,7 @@ def add_chart(slide, chart_info, prs):
     y = Cm(4)
     cx = prs.slide_width - Cm(4)
     cy = Cm(12)
-    slide.shapes.add_chart(
+    return slide.shapes.add_chart(
         CHART_KIND_MAP.get(kind, XL_CHART_TYPE.BAR_CLUSTERED),
         x, y, cx, cy, cd,
     )
@@ -383,3 +384,4 @@ def fill_cloned_slide(slide, title=None, bullets=None, notes=None,
             slide.notes_slide.notes_text_frame.text = notes
         except Exception:
             pass
+

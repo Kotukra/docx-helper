@@ -401,7 +401,8 @@ class PresentationTests(unittest.TestCase):
     def test_slide_markup_round_trip_keeps_notes_images_chart_and_table(self):
         from processor.ppt_creator import parse_presentation
         from slide_editor import serialize_presentation
-        markup = ('[SLIDE: chart]\n# Динамика\n- Вывод\n[IMAGE: график.png]\n'
+        markup = ('[SLIDE: chart]\n# Динамика\n[LAYOUT: title=0.05,0.04,0.9,0.14; body=0.05,0.22,0.6,0.7]\n'
+                  '- Вывод\n[IMAGE: график.png]\n'
                   '[CHART: line]\n2024: 5\n2025: 8\n[/CHART]\n'
                   '[TABLE]\n| Год | Значение |\n|---|---|\n| 2025 | 8 |\n[/TABLE]\n'
                   '[NOTES: Подробное объяснение]')
@@ -411,6 +412,30 @@ class PresentationTests(unittest.TestCase):
         self.assertEqual(round_trip[0]['images'], ['график.png'])
         self.assertEqual(round_trip[0]['chart'], parsed[0]['chart'])
         self.assertEqual(round_trip[0]['table'], parsed[0]['table'])
+        self.assertEqual(round_trip[0]['positions'], {
+            'title': (0.05, 0.04, 0.9, 0.14), 'body': (0.05, 0.22, 0.6, 0.7)})
+
+    def test_slide_layout_metadata_moves_title_shape_in_generated_pptx(self):
+        from processor.ppt_creator import create_presentation
+        from pptx import Presentation
+        template = Path(__file__).resolve().parents[1] / 'templates_ppt' / 'starter.pptx'
+        markup = ('[SLIDE: title]\n# Перемещённый заголовок\n'
+                  '[LAYOUT: title=0.1,0.1,0.6,0.2]')
+        with TemporaryDirectory() as tmp:
+            output = Path(tmp) / 'positioned.pptx'
+            create_presentation(markup, str(output), str(template), {})
+            presentation = Presentation(output)
+            slide = presentation.slides[0]
+            title = next(shape for shape in slide.shapes if shape.name == 'GOST layout title')
+            self.assertAlmostEqual(title.left, round(presentation.slide_width * 0.1), delta=2)
+            self.assertAlmostEqual(title.top, round(presentation.slide_height * 0.1), delta=2)
+            self.assertAlmostEqual(title.width, round(presentation.slide_width * 0.6), delta=2)
+            self.assertAlmostEqual(title.height, round(presentation.slide_height * 0.2), delta=2)
+
+    def test_invalid_slide_layout_metadata_is_ignored(self):
+        from processor.ppt_creator import parse_presentation
+        parsed = parse_presentation('[SLIDE: bullets]\n# Example\n[LAYOUT: title=0.9,0.9,0.5,0.2; bad=x,y,z,w]')
+        self.assertEqual(parsed[0]['positions'], {})
 
     def test_slide_quality_check_reports_bounds_overlap_and_small_text(self):
         from pptx import Presentation
@@ -454,13 +479,42 @@ class PresentationTests(unittest.TestCase):
             output = Path(tmp) / 'table.pptx'
             rows = '\n'.join(f'| Строка {i} | Значение {i} |' for i in range(1, 18))
             markup = ('[SLIDE:table]\n# Проверка таблицы\n[TABLE]\n'
+                      '[LAYOUT: table=0.1,0.2,0.8,0.6]\n'
                       '| Поле | Значение |\n|---|---|\n' + rows + '\n[/TABLE]')
             create_presentation(markup, str(output), str(template), {})
             from pptx import Presentation
             prs = Presentation(output)
             table_shape = next(shape for shape in prs.slides[0].shapes if shape.has_table)
+            self.assertAlmostEqual(table_shape.left, round(prs.slide_width * 0.1), delta=2)
+            self.assertAlmostEqual(table_shape.top, round(prs.slide_height * 0.2), delta=2)
+            self.assertAlmostEqual(table_shape.width, round(prs.slide_width * 0.8), delta=2)
+            self.assertAlmostEqual(table_shape.height, round(prs.slide_height * 0.6), delta=2)
             self.assertLessEqual(table_shape.top + table_shape.height, prs.slide_height)
             self.assertGreaterEqual(table_shape.top, 0)
+
+    def test_slide_layout_metadata_moves_chart_and_keeps_image_ratio(self):
+        from processor.ppt_creator import create_presentation
+        from pptx import Presentation
+        from PIL import Image
+        template = Path(__file__).resolve().parents[1] / 'templates_ppt' / 'starter.pptx'
+        with TemporaryDirectory() as tmp:
+            image_path = Path(tmp) / 'portrait.png'
+            Image.new('RGB', (300, 600), 'white').save(image_path)
+            output = Path(tmp) / 'positioned_shapes.pptx'
+            markup = (f'[SLIDE: image_right]\n# Фото\n[IMAGE: {image_path}]\n'
+                      '[LAYOUT: image_1=0.55,0.15,0.35,0.7]\n'
+                      '---\n[SLIDE: chart]\n# Диаграмма\n'
+                      '[CHART: bar]\n2025: 4\n2026: 7\n[/CHART]\n'
+                      '[LAYOUT: chart=0.1,0.2,0.8,0.6]')
+            create_presentation(markup, str(output), str(template), {})
+            prs = Presentation(output)
+            picture = next(shape for shape in prs.slides[0].shapes if shape.name == 'GOST layout image_1')
+            self.assertGreaterEqual(picture.left, round(prs.slide_width * 0.55))
+            self.assertLessEqual(picture.left + picture.width, round(prs.slide_width * 0.9) + 2)
+            self.assertAlmostEqual(picture.width / picture.height, 0.5, delta=0.02)
+            chart = next(shape for shape in prs.slides[1].shapes if shape.has_chart)
+            self.assertAlmostEqual(chart.left, round(prs.slide_width * 0.1), delta=2)
+            self.assertAlmostEqual(chart.top, round(prs.slide_height * 0.2), delta=2)
 
     def test_full_image_is_fitted_without_overflow(self):
         from processor.ppt_builder import add_full_image
@@ -475,3 +529,4 @@ class PresentationTests(unittest.TestCase):
             picture = next(shape for shape in slide.shapes if shape.shape_type == 13)
             self.assertLessEqual(picture.left + picture.width, prs.slide_width)
             self.assertLessEqual(picture.top + picture.height, prs.slide_height)
+
