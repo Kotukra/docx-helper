@@ -53,8 +53,10 @@ def docx_to_presentation_markup(path, max_items: int = 6, asset_dir: str | None 
                   for paragraph in document.paragraphs if paragraph.text.strip()]
     extracted_images = _extract_images(document, asset_dir or _default_asset_dir())
     images_by_paragraph = {}
+    text_paragraphs = {paragraph_xml for _style, _text, paragraph_xml in paragraphs}
     for title, caption, image_path, paragraph_xml in extracted_images:
-        if paragraph_xml.getparent().tag == qn("w:body"):
+        if (paragraph_xml.getparent().tag == qn("w:body")
+                and paragraph_xml in text_paragraphs):
             images_by_paragraph.setdefault(paragraph_xml, []).append((title, caption, image_path))
     if not paragraphs and not document.tables and not extracted_images:
         raise ValueError("В DOCX не найдено текста или таблиц для переноса")
@@ -70,12 +72,16 @@ def docx_to_presentation_markup(path, max_items: int = 6, asset_dir: str | None 
     current_title = "Основные положения"
     current_items = []
     inline_image_slides = []
+    if paragraphs and paragraphs[0][2] in images_by_paragraph:
+        inline_image_slides.append((paragraphs[0][1], "", images_by_paragraph[paragraphs[0][2]]))
     for style, text, paragraph_xml in paragraphs[1:] if paragraphs else []:
         if style.startswith("Heading 1") or style.startswith("Заголовок 1"):
             if current_items:
                 groups.append((current_title, current_items))
                 current_items = []
             current_title = text
+            if paragraph_xml in images_by_paragraph:
+                inline_image_slides.append((current_title, "", images_by_paragraph[paragraph_xml]))
         elif paragraph_xml in images_by_paragraph:
             if current_items:
                 groups.append((current_title, current_items))
@@ -95,7 +101,9 @@ def docx_to_presentation_markup(path, max_items: int = 6, asset_dir: str | None 
             lines.extend(f"- {item[:180]}" for item in chunk)
 
     for title, text, images in inline_image_slides:
-        lines.extend(["---", "[SLIDE: image_right]", f"# {title}", f"- {text[:180]}"])
+        lines.extend(["---", "[SLIDE: image_right]", f"# {title}"])
+        if text:
+            lines.append(f"- {text[:180]}")
         lines.extend(f"[IMAGE: {image_path} | {caption}]" for _image_title, caption, image_path in images)
 
     for table_index, table in enumerate(document.tables, start=1):
