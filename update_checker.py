@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import re
 from urllib.error import URLError
+from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
 
 
@@ -34,6 +35,12 @@ def check_for_update(manifest_url: str, current_version: str, timeout: float = 5
         raise ValueError("Манифест должен быть JSON-объектом с полем version.")
     latest = str(manifest["version"])
     available = _is_newer(latest, current_version)
+    download_url = str(manifest.get("download_url", "")).strip()
+    if download_url:
+        parsed_download_url = urlsplit(download_url)
+        if (parsed_download_url.scheme.lower() != "https" or not parsed_download_url.netloc
+                or parsed_download_url.username or parsed_download_url.password):
+            raise ValueError("Ссылка на релиз в манифесте должна быть безопасным HTTPS-адресом.")
     return {"available": available, "current_version": str(current_version),
-            "latest_version": latest, "download_url": str(manifest.get("download_url", "")),
+            "latest_version": latest, "download_url": download_url,
             "notes": str(manifest.get("notes", ""))}

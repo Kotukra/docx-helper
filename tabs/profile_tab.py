@@ -4,9 +4,9 @@ from PySide6.QtWidgets import (
     QPushButton, QFileDialog, QMessageBox, QColorDialog, QCheckBox, QComboBox, QDialog, QPlainTextEdit, QInputDialog, QGridLayout,
     QLineEdit
 )
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QUrl
 from PySide6.QtCore import QThread, Signal
-from PySide6.QtGui import QColor
+from PySide6.QtGui import QColor, QDesktopServices
 import json
 from document_profile_manager import list_profiles, get_profile, save_profile, delete_profile
 from ui_theme import BUILTIN_PALETTES, DEFAULT_COLORS, normalize_colors, normalize_palettes
@@ -235,11 +235,26 @@ class ProfileTab(QWidget):
             QMessageBox.warning(self, "Центр обновлений", error)
             return
         if result["available"]:
-            text = (f"Доступна версия {result['latest_version']} (сейчас {result['current_version']}).\n"
-                    f"{result['notes']}\n{result['download_url']}")
-        else:
-            text = f"Установлена актуальная версия {result['current_version']}."
-        QMessageBox.information(self, "Центр обновлений", text)
+            text = f"Доступна версия {result['latest_version']} (сейчас {result['current_version']})."
+            if result.get("notes"):
+                text += f"\n\n{result['notes']}"
+            box = QMessageBox(self)
+            box.setIcon(QMessageBox.Icon.Information)
+            box.setWindowTitle("Центр обновлений")
+            box.setText(text)
+            open_button = None
+            if result.get("download_url"):
+                open_button = box.addButton("Открыть страницу релиза", QMessageBox.ButtonRole.ActionRole)
+            box.addButton(QMessageBox.StandardButton.Close)
+            box.exec()
+            if open_button and box.clickedButton() == open_button:
+                if not QDesktopServices.openUrl(QUrl(result["download_url"])):
+                    QMessageBox.warning(self, "Центр обновлений", "Не удалось открыть страницу релиза.")
+            return
+        QMessageBox.information(
+            self, "Центр обновлений",
+            f"Установлена актуальная версия {result['current_version']}."
+        )
 
     def save_favorite_preset(self):
         name, accepted = QInputDialog.getText(self, "Избранные настройки", "Название набора:")

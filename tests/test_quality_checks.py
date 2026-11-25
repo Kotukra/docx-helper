@@ -121,6 +121,23 @@ class UpdateCheckerTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             check_for_update("http://example.org/releases.json", "8.1.0")
 
+    def test_manifest_rejects_non_https_release_link(self):
+        import json
+        from unittest.mock import patch
+        from update_checker import check_for_update
+
+        class Response:
+            def __enter__(self):
+                return self
+            def __exit__(self, *_args):
+                return False
+            def read(self):
+                return json.dumps({"version": "8.2.0", "download_url": "http://example.org/app.zip"}).encode()
+
+        with patch("update_checker.urlopen", return_value=Response()):
+            with self.assertRaises(ValueError):
+                check_for_update("https://example.org/releases.json", "8.1.0")
+
     def test_semver_trailing_zero_does_not_look_like_update(self):
         import json
         from unittest.mock import patch
