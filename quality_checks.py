@@ -30,6 +30,15 @@ def _bibliography_lines(text: str) -> list[str]:
     return entries
 
 
+def _chapter_numbers(text: str) -> list[int]:
+    numbers = []
+    for line in (text or "").splitlines():
+        match = re.match(r"^\s*(?:глава\s+(\d+)\b|(\d+)\.\s+[А-ЯЁA-Z])", line, re.IGNORECASE)
+        if match:
+            numbers.append(int(match.group(1) or match.group(2)))
+    return numbers
+
+
 def find_duplicate_fragments(text: str, min_length: int = 40) -> list[str]:
     """Return repeated sentence-sized fragments, ignoring case and whitespace."""
     sentences = re.split(r"(?<=[.!?])\s+|\n+", text or "")
@@ -111,6 +120,7 @@ def inspect_text(text: str, settings: dict | None = None) -> dict:
     settings = settings or {}
     detected = detect_content(text)
     findings = []
+    chapter_numbers = _chapter_numbers(text)
 
     def add(severity, code, message):
         findings.append({"severity": severity, "code": code, "message": message})
@@ -162,6 +172,10 @@ def inspect_text(text: str, settings: dict | None = None) -> dict:
                 add("warning", "bibliography_short_entry",
                     "В библиографии есть слишком короткая запись; проверьте её полноту.")
 
+    if len(chapter_numbers) > 1 and chapter_numbers != list(range(1, len(chapter_numbers) + 1)):
+        add("warning", "chapter_sequence",
+            "Нумерация глав содержит повторные номера или пропуски; проверьте структуру.")
+
     if detected["presentation"]:
         content_type = "Разметка презентации"
     elif detected["markdown_headings"] or detected["tables"] or detected["code_blocks"]:
@@ -192,6 +206,7 @@ def inspect_text(text: str, settings: dict | None = None) -> dict:
         "detected": detected,
         "findings": findings,
         "bibliography_entries": len(bibliography_entries),
+        "chapter_numbers": chapter_numbers,
         "duplicate_fragments": duplicate_fragments,
         "errors": sum(item["severity"] == "error" for item in findings),
         "warnings": sum(item["severity"] == "warning" for item in findings),

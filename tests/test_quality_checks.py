@@ -80,6 +80,11 @@ print(1)
         self.assertIn("missing_chapters", codes)
         self.assertIn("missing_appendices", codes)
 
+    def test_chapter_number_gaps_are_reported(self):
+        report = inspect_text("Введение\nГлава 1 Основы\nГлава 3 Результаты\nЗаключение")
+        self.assertEqual(report["chapter_numbers"], [1, 3])
+        self.assertIn("chapter_sequence", {item["code"] for item in report["findings"]})
+
     def test_gost_profile_geometry_and_text_settings_are_checked(self):
         from unittest.mock import patch
         bad_profile = {"page_width": 21, "page_height": 29.7,
