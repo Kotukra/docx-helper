@@ -146,7 +146,7 @@ class DocxGenerationTests(unittest.TestCase):
             doc.add_picture(str(wide), width=Cm(20))
             doc.save(path)
             codes = {item['code'] for item in inspect_docx_images(path)['findings']}
-            self.assertEqual(codes, {'image_too_small', 'image_too_large'})
+            self.assertEqual(codes, {'image_too_small', 'image_too_large', 'image_low_resolution'})
 
     def test_docx_to_presentation_markup_keeps_headings_tables_and_images(self):
         from PIL import Image
