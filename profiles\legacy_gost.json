@@ -1,0 +1,47 @@
+{
+  "profile_id": "legacy_gost",
+  "profile_name": "ГОСТ (исходный)",
+  "description": "Совместимый профиль с исходными параметрами приложения.",
+  "page_width": 21.0,
+  "page_height": 29.7,
+  "margins": {
+    "top": 2.0,
+    "bottom": 2.0,
+    "left": 3.0,
+    "right": 1.5
+  },
+  "font_name": "Times New Roman",
+  "font_size": 14,
+  "alignment": "justify",
+  "line_spacing_multiple": 1.5,
+  "first_line_indent": 1.25,
+  "left_indent": 0,
+  "right_indent": 0,
+  "space_before": 0,
+  "space_after": 0,
+  "heading_1": {
+    "font_name": "Times New Roman",
+    "font_size": 14,
+    "bold": true,
+    "alignment": "center",
+    "space_before": 0,
+    "space_after": 12,
+    "page_break_before": true
+  },
+  "heading_2": {
+    "font_name": "Times New Roman",
+    "font_size": 14,
+    "bold": true,
+    "alignment": "left",
+    "space_before": 12,
+    "space_after": 6
+  },
+  "code_font_name": "Times New Roman",
+  "code_font_size": 11,
+  "code_alignment": "left",
+  "code_left_indent": 0.423,
+  "code_first_line_indent": 0,
+  "code_line_spacing": 1.0,
+  "code_space_before": 0,
+  "code_space_after": 0
+}

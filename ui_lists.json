@@ -1,0 +1,5 @@
+{
+  "font_names": ["Times New Roman", "Arial", "Calibri", "Verdana", "Georgia"],
+  "alignments": ["left", "center", "right", "justify"],
+  "spellcheck_langs": ["ru", "en", "auto"]
+}

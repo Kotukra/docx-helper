@@ -1,0 +1,104 @@
+/* styles.qss */
+QMainWindow, QWidget {
+    background-color: %BACKGROUND_COLOR%;
+    color: %TEXT_COLOR%;
+}
+QGroupBox {
+    background-color: %SURFACE_COLOR%;
+    border: 1px solid %BORDER_COLOR%;
+    border-radius: 4px;
+    margin-top: 0.5em;
+    font-weight: bold;
+}
+QGroupBox::title {
+    subcontrol-origin: margin;
+    left: 10px;
+    padding: 0 5px 0 5px;
+    color: %TEXT_COLOR%;
+}
+QLineEdit, QTextEdit, QSpinBox, QDoubleSpinBox, QComboBox, QListWidget, QScrollArea {
+    background-color: %CONTROL_COLOR%;
+    color: %TEXT_COLOR%;
+    border: 1px solid %BORDER_COLOR%;
+    border-radius: 3px;
+    selection-background-color: %ACCENT_COLOR%;
+}
+QPushButton {
+    background-color: %CONTROL_COLOR%;
+    color: %TEXT_COLOR%;
+    border: 1px solid %BORDER_COLOR%;
+    border-radius: 3px;
+    padding: 5px 10px;
+}
+QPushButton:hover {
+    background-color: %ACCENT_COLOR%;
+}
+QPushButton:pressed {
+    background-color: %ACCENT_COLOR%;
+}
+QTabWidget::pane {
+    border: 1px solid %BORDER_COLOR%;
+    background-color: %SURFACE_COLOR%;
+}
+QTabBar::tab {
+    background-color: %SURFACE_COLOR%;
+    color: %TEXT_COLOR%;
+    padding: 8px 12px;
+    border: 1px solid %BORDER_COLOR%;
+    border-bottom: none;
+    border-top-left-radius: 4px;
+    border-top-right-radius: 4px;
+}
+QTabBar::tab:selected {
+    background-color: %ACCENT_COLOR%;
+}
+QTabBar::tab:hover {
+    background-color: %CONTROL_COLOR%;
+}
+QScrollBar:vertical {
+    background: %BACKGROUND_COLOR%;
+    width: 10px;
+    margin: 0px;
+}
+QScrollBar::handle:vertical {
+    background: %ACCENT_COLOR%;
+    min-height: 20px;
+    border-radius: 5px;
+}
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+    height: 0px;
+}
+QScrollBar:horizontal {
+    background: %BACKGROUND_COLOR%;
+    height: 10px;
+    margin: 0px;
+}
+QScrollBar::handle:horizontal {
+    background: %ACCENT_COLOR%;
+    min-width: 20px;
+    border-radius: 5px;
+}
+QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
+    width: 0px;
+}
+QCheckBox {
+    color: %TEXT_COLOR%;
+}
+QComboBox::drop-down {
+    border: none;
+}
+QComboBox QAbstractItemView {
+    background-color: %CONTROL_COLOR%;
+    color: %TEXT_COLOR%;
+    selection-background-color: %ACCENT_COLOR%;
+}
+QListWidget::item:selected {
+    background-color: %ACCENT_COLOR%;
+}
+QLabel {
+    color: %TEXT_COLOR%;
+}
+QTextEdit {
+    font-family: Consolas;
+    font-size: 12px;
+}

@@ -1,0 +1,15 @@
+PySide6
+python-docx
+python-pptx
+Pillow
+yake
+language_tool_python
+wordcloud
+matplotlib
+docx2pdf
+langdetect
+pdfplumber
+beautifulsoup4
+markdown
+odfpy
+lxml
