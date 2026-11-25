@@ -46,6 +46,13 @@ print(1)
         self.assertEqual(report["bibliography_entries"], 2)
         self.assertIn("bibliography_numbering", codes)
 
+    def test_bibliography_reports_number_gaps_and_repeats(self):
+        report = inspect_text("""СПИСОК ИСТОЧНИКОВ
+1. Автор. Название первого источника, 2020.
+3. Автор. Название третьего источника, 2022.
+""")
+        self.assertIn("bibliography_sequence", {item["code"] for item in report["findings"]})
+
     def test_duplicate_fragments_are_reported(self):
         sentence = "Этот фрагмент текста повторяется в документе и содержит достаточно символов."
         report = inspect_text(sentence + "\n" + sentence)

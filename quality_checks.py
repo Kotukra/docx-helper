@@ -150,6 +150,14 @@ def inspect_text(text: str, settings: dict | None = None) -> dict:
             if any(numbered) and not all(numbered):
                 add("warning", "bibliography_numbering",
                     "В списке источников смешаны нумерованные и ненумерованные записи.")
+            elif numbered and all(numbered):
+                numbers = []
+                for item in bibliography_entries:
+                    match = re.match(r"^(?:\[(\d+)\]|(\d+)[.)])", item)
+                    numbers.append(int(match.group(1) or match.group(2)))
+                if numbers != list(range(1, len(numbers) + 1)):
+                    add("warning", "bibliography_sequence",
+                        "Нумерация источников содержит повторные номера или пропуски.")
             if any(len(item) < 12 for item in bibliography_entries):
                 add("warning", "bibliography_short_entry",
                     "В библиографии есть слишком короткая запись; проверьте её полноту.")

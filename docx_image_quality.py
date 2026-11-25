@@ -20,7 +20,7 @@ def _effective_dpi(document, shape):
 def inspect_docx_images(path, min_width_cm: float = 2.0, min_dpi: float = 150.0) -> dict:
     document = Document(str(path))
     findings = []
-    usable_width = min((section.page_width - section.left_margin - section.right_margin).cm
+    usable_width = min((section.page_width - section.left_margin - section.right_margin) / 360000
                        for section in document.sections)
     for index, shape in enumerate(document.inline_shapes, start=1):
         width, height = shape.width.cm, shape.height.cm

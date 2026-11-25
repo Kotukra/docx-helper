@@ -77,6 +77,7 @@ class DocxGenerationTests(unittest.TestCase):
 
     def test_docx_to_slides_skips_external_image_relationships(self):
         from types import SimpleNamespace
+        from unittest.mock import patch
         from docx_to_slides import _extract_images
 
         class ExternalImageRelationship:
@@ -93,11 +94,13 @@ class DocxGenerationTests(unittest.TestCase):
 
         paragraph_xml = SimpleNamespace(xpath=lambda query: [Blip()] if query == ".//a:blip" else [])
         paragraph = SimpleNamespace(style=SimpleNamespace(name="Normal"), _p=paragraph_xml)
-        document = SimpleNamespace(paragraphs=[paragraph], part=SimpleNamespace(
+        body = SimpleNamespace(xpath=lambda query: [object()] if query == ".//w:p" else [])
+        document = SimpleNamespace(element=SimpleNamespace(body=body), part=SimpleNamespace(
             rels={"rIdExternal": ExternalImageRelationship()}))
 
         with TemporaryDirectory() as tmp:
-            self.assertEqual(_extract_images(document, tmp), [])
+            with patch("docx_to_slides.Paragraph", return_value=paragraph):
+                self.assertEqual(_extract_images(document, tmp), [])
 
     def test_layout_check_reports_unattached_heading_and_splittable_row(self):
         from docx_layout_quality import inspect_docx_layout
@@ -194,7 +197,7 @@ class DocxGenerationTests(unittest.TestCase):
             reference.sections[0].footer.paragraphs[0].text = 'Лист'
             reference.save(reference_path)
             candidate = Document()
-            candidate.sections[0].left_margin = __import__('docx').shared.Cm(3.0)
+            candidate.sections[0].left_margin = __import__('docx').shared.Cm(4.0)
             candidate.styles['Normal'].paragraph_format.line_spacing = 1.5
             candidate.add_paragraph('Текст проверяемого документа.')
             candidate.add_table(rows=2, cols=2)
