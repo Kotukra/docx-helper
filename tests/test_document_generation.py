@@ -113,6 +113,19 @@ class DocxGenerationTests(unittest.TestCase):
             codes = {item['code'] for item in inspect_docx_layout(path)['findings']}
             self.assertEqual(codes, {'orphan_heading', 'split_table_row'})
 
+    def test_layout_check_warns_about_consecutive_page_breaks(self):
+        from docx_layout_quality import inspect_docx_layout
+        with TemporaryDirectory() as tmp:
+            path = Path(tmp) / 'empty_page.docx'
+            doc = Document()
+            doc.add_paragraph('Текст до разрыва')
+            doc.add_page_break()
+            doc.add_page_break()
+            doc.add_paragraph('Текст после разрыва')
+            doc.save(path)
+            codes = {item['code'] for item in inspect_docx_layout(path)['findings']}
+            self.assertIn('consecutive_page_breaks', codes)
+
     def test_merge_docx_keeps_text_and_images(self):
         from PIL import Image
         from docx_merge import merge_docx_files
