@@ -182,6 +182,9 @@ class DocxGenerationTests(unittest.TestCase):
             table.cell(1, 0).text = 'Срок'
             table.cell(1, 1).text = '2026'
             table.cell(1, 1).paragraphs[0].add_run().add_picture(str(image))
+            inline = doc.add_paragraph()
+            inline.add_run('Фотография образца')
+            inline.add_run().add_picture(str(image))
             doc.add_picture(str(image))
             doc.save(path)
             asset_dir = Path(tmp) / 'assets'
@@ -192,6 +195,8 @@ class DocxGenerationTests(unittest.TestCase):
             self.assertIn('[SLIDE: table]', markup)
             self.assertIn('| Срок | 2026 |', markup)
             self.assertEqual(markup.count('[SLIDE: image_full]'), 2)
+            self.assertIn('[SLIDE: image_right]', markup)
+            self.assertIn('- Фотография образца', markup)
             self.assertTrue(list(asset_dir.glob('*')))
             from processor.ppt_creator import parse_presentation
             image_slide = next(slide for slide in parse_presentation(markup) if slide['type'] == 'image_full')

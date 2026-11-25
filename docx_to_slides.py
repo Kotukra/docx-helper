@@ -11,7 +11,7 @@ def _default_asset_dir() -> str:
     return os.path.join(root, "GostDocumentGenerator", "imported_assets")
 
 
-def _extract_images(document, asset_dir: str) -> list[tuple[str, str, str]]:
+def _extract_images(document, asset_dir: str) -> list[tuple[str, str, str, object]]:
     os.makedirs(asset_dir, exist_ok=True)
     images = []
     current_title = "Иллюстрация"
@@ -42,15 +42,20 @@ def _extract_images(document, asset_dir: str) -> list[tuple[str, str, str]]:
                     image_file.write(data)
             descriptions = paragraph._p.xpath(".//wp:docPr/@descr")
             caption = descriptions[0].strip() if descriptions and descriptions[0].strip() else "Иллюстрация"
-            images.append((current_title, caption, destination))
+            images.append((current_title, caption, destination, paragraph._p))
     return images
 
 
 def docx_to_presentation_markup(path, max_items: int = 6, asset_dir: str | None = None) -> str:
     document = Document(str(path))
-    paragraphs = [(paragraph.style.name if paragraph.style else "Normal", paragraph.text.strip())
+    paragraphs = [(paragraph.style.name if paragraph.style else "Normal",
+                   paragraph.text.strip(), paragraph._p)
                   for paragraph in document.paragraphs if paragraph.text.strip()]
     extracted_images = _extract_images(document, asset_dir or _default_asset_dir())
+    images_by_paragraph = {}
+    for title, caption, image_path, paragraph_xml in extracted_images:
+        if paragraph_xml.getparent().tag == qn("w:body"):
+            images_by_paragraph.setdefault(paragraph_xml, []).append((title, caption, image_path))
     if not paragraphs and not document.tables and not extracted_images:
         raise ValueError("В DOCX не найдено текста или таблиц для переноса")
     max_items = max(1, int(max_items))
@@ -64,12 +69,18 @@ def docx_to_presentation_markup(path, max_items: int = 6, asset_dir: str | None 
     groups = []
     current_title = "Основные положения"
     current_items = []
-    for style, text in paragraphs[1:] if paragraphs else []:
+    inline_image_slides = []
+    for style, text, paragraph_xml in paragraphs[1:] if paragraphs else []:
         if style.startswith("Heading 1") or style.startswith("Заголовок 1"):
             if current_items:
                 groups.append((current_title, current_items))
                 current_items = []
             current_title = text
+        elif paragraph_xml in images_by_paragraph:
+            if current_items:
+                groups.append((current_title, current_items))
+                current_items = []
+            inline_image_slides.append((current_title, text, images_by_paragraph[paragraph_xml]))
         elif style.startswith(("Heading", "Заголовок")):
             current_items.append(f"{text}")
         else:
@@ -83,6 +94,10 @@ def docx_to_presentation_markup(path, max_items: int = 6, asset_dir: str | None 
             lines.extend(["---", "[SLIDE: bullets]", f"# {title}"])
             lines.extend(f"- {item[:180]}" for item in chunk)
 
+    for title, text, images in inline_image_slides:
+        lines.extend(["---", "[SLIDE: image_right]", f"# {title}", f"- {text[:180]}"])
+        lines.extend(f"[IMAGE: {image_path} | {caption}]" for _image_title, caption, image_path in images)
+
     for table_index, table in enumerate(document.tables, start=1):
         rows = []
         for row in table.rows:
@@ -92,6 +107,8 @@ def docx_to_presentation_markup(path, max_items: int = 6, asset_dir: str | None 
         if rows:
             lines.extend(["---", "[SLIDE: table]", f"# Таблица {table_index}", "[TABLE]", *rows, "[/TABLE]"])
 
-    for title, caption, image_path in extracted_images:
+    for title, caption, image_path, paragraph_xml in extracted_images:
+        if paragraph_xml in images_by_paragraph:
+            continue
         lines.extend(["---", "[SLIDE: image_full]", f"# {title}", f"[IMAGE: {image_path} | {caption}]"])
     return "\n".join(lines)
