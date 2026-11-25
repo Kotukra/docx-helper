@@ -5,6 +5,9 @@ import sys
 import subprocess
 from typing import Optional, Dict
 from docx import Document
+from docx.oxml.ns import qn
+from docx.table import Table
+from docx.text.paragraph import Paragraph
 
 from .availability import MARKDOWN_AVAILABLE, DOCX2PDF_AVAILABLE
 from .constants import REQUIRED_PACKAGES
@@ -25,7 +28,19 @@ def extract_text_from_docx(filepath: str, debug: bool = False) -> str:
         debug_logger = get_debug_logger()
         debug_logger.debug(f"extract_text_from_docx: {filepath}")
     doc = Document(filepath)
-    text = '\n'.join(p.text for p in doc.paragraphs if p.text.strip())
+    blocks = []
+    for element in doc.element.body.iterchildren():
+        if element.tag == qn("w:p"):
+            value = Paragraph(element, doc).text.strip()
+            if value:
+                blocks.append(value)
+        elif element.tag == qn("w:tbl"):
+            table = Table(element, doc)
+            for row in table.rows:
+                values = [cell.text.strip().replace("\n", " ") for cell in row.cells]
+                if any(values):
+                    blocks.append(" | ".join(values))
+    text = '\n'.join(blocks)
     if debug:
         debug_logger.debug(f"Извлечено {len(text)} символов")
     return text

@@ -49,6 +49,22 @@ class ProfileTests(unittest.TestCase):
 
 
 class DocxGenerationTests(unittest.TestCase):
+    def test_docx_text_import_includes_tables_in_document_order(self):
+        from processor.file_io import extract_text_from_docx
+
+        with TemporaryDirectory() as tmp:
+            path = Path(tmp) / "table_import.docx"
+            doc = Document()
+            doc.add_paragraph("До таблицы")
+            table = doc.add_table(rows=1, cols=2)
+            table.cell(0, 0).text = "Поле"
+            table.cell(0, 1).text = "Значение"
+            doc.add_paragraph("После таблицы")
+            doc.save(path)
+            imported = extract_text_from_docx(str(path))
+
+        self.assertEqual(imported.splitlines(), ["До таблицы", "Поле | Значение", "После таблицы"])
+
     def test_pptx_shape_iterator_reads_text_nested_in_groups(self):
         from types import SimpleNamespace
         from processor.file_io import _iter_pptx_shapes
